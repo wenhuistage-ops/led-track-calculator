@@ -1,0 +1,707 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="description" content="LED 天軌舞台設備配置計算工具 — 軌道、片 truss、子/母車、線車物料自動計算">
+<meta property="og:title" content="LED 天軌物料計算器">
+<meta property="og:description" content="舞台演出 LED 天軌設備配置自動計算 — 正向計算 + 反求門寬 / 反求走行">
+<title>LED 天軌物料計算器</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang TC","Microsoft JhengHei","Hiragino Sans","Yu Gothic Medium","Meiryo","Noto Sans KR","Apple SD Gothic Neo","Malgun Gothic","Helvetica Neue",Helvetica,Arial,sans-serif;background:#0a0a0a;color:#f5f5f5;min-height:100vh;padding:20px;line-height:1.5;font-size:14px}
+.container{max-width:1400px;margin:0 auto}
+header{text-align:center;margin-bottom:24px;padding:16px 0;border-bottom:1px solid #262626;position:relative}
+h1{font-size:24px;font-weight:600;margin-bottom:4px}
+.subtitle{color:#a3a3a3;font-size:13px}
+.lang-wrap{position:absolute;top:16px;right:0}
+.lang-sel{background:#161616;border:1px solid #262626;border-radius:6px;color:#f5f5f5;padding:7px 28px 7px 12px;font-size:12px;font-family:inherit;cursor:pointer;appearance:none;-webkit-appearance:none;background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'><path fill='%23a3a3a3' d='M6 9L1 4h10z'/></svg>");background-repeat:no-repeat;background-position:right 8px center}
+.lang-sel:hover{border-color:#525252}
+@media(max-width:700px){
+.lang-wrap{position:static;margin-top:12px;display:inline-block}
+body{padding:10px}
+h1{font-size:20px}
+.subtitle{font-size:11px}
+header{padding:10px 0;margin-bottom:14px}
+.card{padding:14px}
+.grid{grid-template-columns:repeat(2,1fr);gap:8px}
+.sv{font-size:18px}
+.stat{padding:10px}
+.layout{gap:12px}
+.card+.card{margin-top:12px}
+input[type="number"]{padding:11px;font-size:16px}
+.cb{padding:14px;font-size:15px}
+.ro{padding:11px 6px;font-size:13px}
+.tab{padding:11px 4px;font-size:11px;line-height:1.2}
+th,td{padding:7px 5px;font-size:11px}
+.qty{padding:2px 6px;min-width:24px;font-size:11px}
+.lg{gap:8px}
+.li{font-size:11px}
+.hint{font-size:12px;line-height:1.4}
+.viz{padding:8px}
+.viz svg text:not([font-size="8"]){font-size:13px!important;font-weight:600!important}
+.viz svg text[font-size="8"]{display:none}
+.note{font-size:11px}
+.solv{font-size:12px}
+}
+@media(max-width:480px){
+.viz svg text:not([font-size="8"]){font-size:12px!important}
+}
+.share-btn{background:#0a0a0a;border:1px solid #262626;color:#a3a3a3;border-radius:6px;padding:6px 10px;font-size:13px;cursor:pointer;font-family:inherit;line-height:1;display:inline-flex;align-items:center;gap:5px}
+.share-btn:hover{color:#f5f5f5;border-color:#525252}
+.share-toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:#10b981;color:#0a0a0a;padding:10px 20px;border-radius:8px;font-size:13px;font-weight:600;z-index:2000;opacity:0;transition:opacity 0.3s;pointer-events:none}
+.share-toast.show{opacity:1}
+.fs-btn{background:#0a0a0a;border:1px solid #262626;color:#a3a3a3;border-radius:6px;padding:6px 10px;font-size:14px;cursor:pointer;font-family:inherit;line-height:1}
+.fs-btn:hover{color:#f5f5f5;border-color:#525252}
+.fs-overlay{position:fixed;inset:0;background:#0a0a0a;z-index:1000;display:none;padding:20px}
+.fs-overlay.show{display:flex;align-items:center;justify-content:center}
+.fs-overlay svg{width:100%;height:100%;max-width:100%;max-height:100%}
+.fs-overlay svg text{font-size:14px!important;font-weight:600!important}
+.fs-overlay svg text[font-size="8"]{display:none}
+.fs-close{position:fixed;top:16px;right:16px;background:#161616;border:1px solid #262626;color:#f5f5f5;border-radius:50%;width:44px;height:44px;font-size:18px;cursor:pointer;z-index:1001;font-family:inherit;display:flex;align-items:center;justify-content:center}
+.fs-close:hover{background:#262626}
+.fs-hint{display:none;position:fixed;bottom:24px;left:50%;transform:translateX(-50%);color:#a3a3a3;font-size:12px;background:rgba(22,22,22,0.95);padding:8px 14px;border-radius:6px;z-index:1001;border:1px solid #262626;white-space:nowrap}
+@media(max-width:700px){.fs-overlay{padding:10px}.fs-close{top:10px;right:10px;width:38px;height:38px;font-size:16px}}
+@media(max-width:700px) and (orientation:portrait){.fs-overlay.show .fs-hint{display:block;bottom:90px}}
+.fs-controls{position:fixed;bottom:16px;left:50%;transform:translateX(-50%);display:flex;align-items:center;gap:12px;background:rgba(22,22,22,0.95);padding:10px 18px;border-radius:8px;border:1px solid #262626;z-index:1001;width:min(80vw,500px)}
+.fs-controls input[type="range"]{flex:1;accent-color:#f97316;cursor:pointer;min-width:0}
+.fs-controls span{font-size:12px;color:#a3a3a3;white-space:nowrap}
+.fs-controls #fs-pct{color:#fb923c;font-weight:500;min-width:42px;text-align:right}
+@media(max-width:700px){.fs-controls{bottom:10px;padding:8px 12px;width:calc(100% - 20px)}}
+.layout{display:grid;grid-template-columns:340px 1fr;gap:20px;align-items:start}
+@media(max-width:900px){.layout{grid-template-columns:1fr}.sticky{position:static!important}}
+.card{background:#161616;border:1px solid #262626;border-radius:12px;padding:18px}
+.sticky{position:sticky;top:20px}
+.card+.card{margin-top:16px}
+.ct{font-size:13px;font-weight:600;margin-bottom:12px;display:flex;align-items:center;gap:8px;text-transform:uppercase;letter-spacing:0.5px}
+.ct::before{content:'';width:3px;height:13px;background:#f97316;border-radius:2px}
+.tabs{display:grid;grid-template-columns:repeat(3,1fr);gap:4px;background:#0a0a0a;padding:4px;border-radius:8px;border:1px solid #262626;margin-bottom:18px}
+.tab{padding:10px 6px;background:transparent;color:#a3a3a3;border:none;border-radius:5px;cursor:pointer;font-size:12px;font-weight:500;font-family:inherit;line-height:1.3}
+.tab.active{background:#f97316;color:#0a0a0a}
+.tab:not(.active):hover{color:#f5f5f5}
+.ig{margin-bottom:12px}
+label{display:block;font-size:12px;color:#a3a3a3;margin-bottom:5px}
+input[type="number"]{width:100%;padding:9px 12px;background:#0a0a0a;border:1px solid #262626;border-radius:6px;color:#f5f5f5;font-size:14px;font-family:inherit}
+input[type="number"]:focus{outline:none;border-color:#f97316}
+.rg{display:grid;grid-template-columns:1fr 1fr;gap:4px;background:#0a0a0a;padding:4px;border-radius:6px;border:1px solid #262626}
+.ro{padding:8px;background:transparent;color:#a3a3a3;border:none;border-radius:4px;cursor:pointer;font-size:13px;font-family:inherit}
+.ro.active{background:#f97316;color:#0a0a0a;font-weight:500}
+.cb{width:100%;padding:11px;background:#f97316;color:#0a0a0a;border:none;border-radius:8px;font-size:14px;font-weight:600;cursor:pointer;margin-top:6px;font-family:inherit}
+.cb:hover{background:#fb923c}
+.note{margin-top:14px;padding:10px 12px;background:rgba(163,163,163,0.04);border:1px solid #262626;border-radius:6px;font-size:11px;color:#a3a3a3;line-height:1.7}
+.note strong{color:#d4d4d4;display:block;margin-bottom:4px}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:10px}
+.stat{background:#0a0a0a;border:1px solid #262626;border-radius:8px;padding:12px}
+.sl{font-size:11px;color:#a3a3a3;margin-bottom:4px;text-transform:uppercase;letter-spacing:0.5px}
+.sv{font-size:22px;font-weight:600;line-height:1.2}
+.su{font-size:12px;color:#a3a3a3;margin-left:3px;font-weight:400}
+.stat.hl{background:rgba(249,115,22,0.08);border-color:rgba(249,115,22,0.3)}
+.stat.hl .sv{color:#fb923c}
+.viz{background:#0a0a0a;border:1px solid #262626;border-radius:8px;padding:12px;overflow:hidden}
+.viz svg{width:100%;height:auto;display:block}
+.vc{display:flex;align-items:center;gap:12px;margin-top:12px;padding:8px 12px;background:#0a0a0a;border-radius:8px;border:1px solid #262626}
+.sll{font-size:12px;color:#a3a3a3}
+input[type="range"]{flex:1;accent-color:#f97316;cursor:pointer}
+#op{font-size:12px;color:#fb923c;min-width:42px;text-align:right;font-weight:500}
+.lg{display:flex;flex-wrap:wrap;gap:12px;margin-top:12px;padding-top:12px;border-top:1px solid #262626}
+.li{display:flex;align-items:center;gap:6px;font-size:11px;color:#a3a3a3}
+.lw{width:12px;height:12px;border-radius:3px}
+.hint{margin-top:10px;font-size:11px;color:#737373;font-style:italic}
+table{width:100%;border-collapse:collapse}
+th,td{text-align:left;padding:10px 12px;border-bottom:1px solid #262626;font-size:13px}
+th{color:#a3a3a3;font-weight:500;font-size:11px;text-transform:uppercase;letter-spacing:0.5px}
+td:first-child{color:#f5f5f5;font-weight:500}
+tr:last-child td{border-bottom:none}
+tr.zr td{opacity:0.45}
+.qty{display:inline-block;padding:2px 10px;background:#f97316;color:#0a0a0a;border-radius:4px;font-weight:600;font-size:12px;min-width:28px;text-align:center}
+.qty.zr{background:#404040;color:#a3a3a3}
+.warn{background:rgba(239,68,68,0.08);border:1px solid rgba(239,68,68,0.3);border-radius:6px;padding:10px 12px;font-size:13px;color:#fca5a5}
+.strip{display:flex;height:32px;border-radius:6px;overflow:hidden;background:#0a0a0a;border:1px solid #262626}
+.ss{display:flex;align-items:center;justify-content:center;font-size:11px;color:rgba(0,0,0,0.85);font-weight:600;transition:width 0.3s}
+.spl{display:flex;flex-wrap:wrap;gap:14px;margin-top:10px;font-size:12px;color:#a3a3a3}
+.spl .dot{display:inline-block;width:8px;height:8px;border-radius:2px;margin-right:5px;vertical-align:middle}
+.solv{background:rgba(16,185,129,0.08);border:1px solid rgba(16,185,129,0.3);border-radius:6px;padding:10px 12px;font-size:12px;color:#6ee7b7;margin-bottom:14px;display:none}
+.solv.show{display:block}
+</style>
+</head>
+<body>
+<div class="container">
+<header>
+  <h1 data-i="title">LED 天軌物料計算器</h1>
+  <p class="subtitle" data-i="subtitle">舞台演出設備配置 · 即時計算物料與配置示意</p>
+  <div class="lang-wrap">
+    <select id="lang" class="lang-sel" aria-label="Language">
+      <option value="zh">繁體中文</option><option value="en">English</option>
+      <option value="id">Bahasa Indonesia</option><option value="vi">Tiếng Việt</option>
+      <option value="ko">한국어</option><option value="ja">日本語</option>
+    </select>
+  </div>
+</header>
+<div class="layout">
+  <div class="card sticky">
+    <div class="ct" data-i="mode_title">計算模式</div>
+    <div class="tabs">
+      <button class="tab active" data-mode="forward" data-i="m_fwd">正向計算</button>
+      <button class="tab" data-mode="rev-door" data-i="m_rd">反求門寬</button>
+      <button class="tab" data-mode="rev-travel" data-i="m_rt">反求走行</button>
+    </div>
+    <div class="ct" data-i="params">參數輸入</div>
+    <div class="ig"><label data-i="led_w">LED 寬度 (m)</label><input type="number" id="led-width" value="24" step="0.5" min="3"></div>
+    <div class="ig"><label data-i="dm">開門模式</label>
+      <div class="rg">
+        <button class="ro active" data-dm="double" data-i="dm_d">兩邊開門</button>
+        <button class="ro" data-dm="single" data-i="dm_s">單邊</button>
+      </div>
+    </div>
+    <div class="ig"><label data-i="led_wt">LED 單邊重量 (T)</label><input type="number" id="led-weight" value="4.6" step="0.1" min="0.1"></div>
+    <div class="ig"><label data-i="m_cap">動力母車單台承重 (T)</label><input type="number" id="motor-cap" value="2.5" step="0.1" min="0.5"></div>
+    <div id="g-forward" class="ig"><label data-i="tl">軌道總長 (m)</label><input type="number" id="track-length" value="41" step="1" min="6"></div>
+    <div id="g-rev-door" class="ig" style="display:none"><label data-i="dd">想要的門寬 (m)</label><input type="number" id="desired-door" value="15" step="0.5" min="1"></div>
+    <div id="g-rev-travel" class="ig" style="display:none"><label data-i="dt">單邊走行距離 (m)</label><input type="number" id="desired-travel" value="7.5" step="0.5" min="0.5"></div>
+    <button class="cb" id="calc-btn" data-i="calc">計 算</button>
+    <div class="note">
+      <strong data-i="rules">計算規則</strong>
+      <span data-i="r_t">• 軌道：3m + 2m 拼接（優先 3m）</span><br>
+      <span data-i="r_tr">• 片 truss：3m，每邊 ⌈LED 半寬 ÷ 3⌉ 片端對端</span><br>
+      <span data-i="r_c">• 子/母車：頭尾必含掛點，間距 ≤ 2.5m</span><br>
+      <span data-i="r_m">• 動力母車：每邊 ⌈重量÷承重⌉（最少 1 台）</span><br>
+      <span data-i="r_l">• 線車：頭尾必含掛點，間距 ≤ 2.5m，寬 17cm + 餘裕 3cm</span>
+    </div>
+  </div>
+  <div>
+    <div id="solved" class="solv"></div>
+    <div class="card"><div class="ct" data-i="stats">關鍵指標</div><div class="grid" id="key-stats"></div></div>
+    <div class="card">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;gap:8px">
+        <div class="ct" style="margin-bottom:0" data-i="layout">配置示意圖（前視圖）</div>
+        <button class="share-btn" onclick="shareConfig()" aria-label="Share" title="Share">🔗 <span data-i="share_btn">分享</span></button>
+        <button class="fs-btn" onclick="openFs()" aria-label="Fullscreen" title="Fullscreen">⛶</button>
+      </div>
+      <div class="viz"><svg id="layout-svg" viewBox="0 0 1000 380" preserveAspectRatio="xMidYMid meet"></svg></div>
+      <div class="vc"><span class="sll" data-i="cls">關</span><input type="range" id="open-slider" min="0" max="100" value="0"><span class="sll" data-i="opn">開</span><span id="op">0%</span></div>
+      <div class="lg">
+        <div class="li"><div class="lw" style="background:#525252"></div><span data-i="lg_t">軌道</span></div>
+        <div class="li"><div class="lw" style="background:#f97316"></div><span data-i="lg_l">LED</span></div>
+        <div class="li"><div class="lw" style="background:#06b6d4"></div><span data-i="lg_tr">片 truss</span></div>
+        <div class="li"><div class="lw" style="background:#10b981"></div><span data-i="lg_s">子車</span></div>
+        <div class="li"><div class="lw" style="background:#fbbf24"></div><span data-i="lg_m">動力母車</span></div>
+        <div class="li"><div class="lw" style="background:#a855f7"></div><span data-i="lg_lc">線車</span></div>
+      </div>
+      <div class="hint" data-i="hint">💡 點擊掛點圓圈可切換動力母車 / 子車身分</div>
+    </div>
+    <div class="card">
+      <div class="ct" data-i="mat">物料清單</div>
+      <table><thead><tr>
+        <th data-i="th_i">項目</th><th data-i="th_s">規格</th><th data-i="th_q">數量</th><th data-i="th_n">備註</th>
+      </tr></thead><tbody id="mat-list"></tbody></table>
+    </div>
+    <div class="card">
+      <div class="ct" data-i="space">空間配置比例</div>
+      <div class="strip" id="space-strip"></div>
+      <div class="spl" id="space-labels"></div>
+    </div>
+  </div>
+</div>
+</div>
+<div id="share-toast" class="share-toast"></div>
+<div id="fs-overlay" class="fs-overlay">
+<button class="fs-close" onclick="closeFs()" aria-label="Close">✕</button>
+<svg id="layout-svg-fs" viewBox="0 0 1000 380" preserveAspectRatio="xMidYMid meet"></svg>
+<div class="fs-controls">
+<span data-i="cls">關</span>
+<input type="range" id="fs-slider" min="0" max="100" value="0">
+<span data-i="opn">開</span>
+<span id="fs-pct">0%</span>
+</div>
+<div class="fs-hint">↻ Rotate device for landscape view</div>
+</div>
+
+<script>
+const i18n = {
+zh:{title:'LED 天軌物料計算器',subtitle:'舞台演出設備配置 · 即時計算物料與配置示意',mode_title:'計算模式',m_fwd:'正向計算',m_rd:'反求門寬',m_rt:'反求走行',params:'參數輸入',led_w:'LED 寬度 (m)',dm:'開門模式',dm_d:'兩邊開門',dm_s:'單邊',led_wt:'LED 單邊重量 (T)',m_cap:'動力母車單台承重 (T)',tl:'軌道總長 (m)',dd:'想要的門寬 (m)',dt:'單邊走行距離 (m)',calc:'計 算',rules:'計算規則',r_t:'• 軌道：3m + 2m 拼接（優先 3m）',r_tr:'• 片 truss：3m，每邊 ⌈LED 半寬 ÷ 3⌉ 片端對端',r_c:'• 子/母車：頭尾必含掛點，間距 ≤ 2.5m',r_m:'• 動力母車：每邊 ⌈重量÷承重⌉（最少 1 台）',r_l:'• 線車：頭尾必含掛點，間距 ≤ 2.5m，寬 17cm + 餘裕 3cm',stats:'關鍵指標',layout:'配置示意圖（前視圖）',mat:'物料清單',space:'空間配置比例',s_tl:'軌道總長',s_lw:'LED 寬度',s_tv:'單邊走行',s_md:'最大門寬',s_cs:'子/母車間距',s_ls:'線車間距',s_lu:'線車佔用/邊',s_hk:'掛點/邊',cls:'關',opn:'開',lg_t:'軌道',lg_l:'LED',lg_tr:'片 truss',lg_s:'子車',lg_m:'動力母車',lg_lc:'線車',hint:'💡 點擊掛點圓圈可切換動力母車 / 子車身分',th_i:'項目',th_s:'規格',th_q:'數量',th_n:'備註',i_t:'軌道',sp_3m:'長 3m',sp_2m:'長 2m',i_m:'動力母車',sp_m:'承重 {cap}T/台',i_s:'子車',sp_s:'掛點用',i_tr:'片 truss',i_lc:'線車',sp_lc:'寬 17cm',n_ps:'每邊 {n} 台',n_pp:'每邊 {n} 片',n_u:'{n} 台',n_p:'{n} 片',n_lr:'左 {l} / 右 {r}',n_tot:'總計',n_tt:'軌道總長 {len}m / LED 總重 {w}T',n_ne:'⚠ 拼接後實際 {actual}m',sp_l:'線車區 {x}m',sp_t:'走行區 {x}m',sp_le:'LED 區 {x}m',ll_l:'線車',ll_t:'走行',ll_e:'LED',l_l:'左',l_r:'右',l_t:'LED {label} {len}m',l_ts:'LED {len}m',d_w:'門寬 {x} m',o_w:'開 {x} m',t_t:'軌道總長 {x} m',t_m:'動力母車 - 點擊切換',t_s:'子車 - 點擊切換',e_w:'LED 寬度不能大於軌道總長',e_z:'LED 寬度需大於 0',e_ts:'軌道長度不足以容納 LED',e_ns:'無法在合理範圍內找到答案',ph:'請輸入參數計算',sf_d:'門寬 {x}m',sf_t:'單邊走行 {x}m',s_msg:'✓ 為達 {target}，建議軌道總長 {len}m（{t3}×3m + {t2}×2m）',share_btn:'分享',share_copied:'✓ 分享連結已複製到剪貼簿'},
+en:{title:'LED Sky Track Calculator',subtitle:'Stage Equipment Configuration · Real-time Materials Calc',mode_title:'Mode',m_fwd:'Forward',m_rd:'Solve Door',m_rt:'Solve Travel',params:'Parameters',led_w:'LED Width (m)',dm:'Door Mode',dm_d:'Bi-parting',dm_s:'Single Side',led_wt:'LED Weight per Side (T)',m_cap:'Motor Cart Capacity (T)',tl:'Track Length (m)',dd:'Desired Door Width (m)',dt:'Travel per Side (m)',calc:'Calculate',rules:'Calculation Rules',r_t:'• Track: 3m + 2m segments (3m preferred)',r_tr:'• Truss: 3m, ⌈LED half-width ÷ 3⌉ pcs/side, end-to-end',r_c:'• Carts: hooks at both ends, spacing ≤ 2.5m',r_m:'• Motor carts: ⌈weight ÷ capacity⌉/side (min 1)',r_l:'• Cable trolleys: hooks at both ends, ≤ 2.5m, 17cm + 3cm clearance',stats:'Key Metrics',layout:'Layout Diagram (Front View)',mat:'Materials List',space:'Space Allocation',s_tl:'Track Length',s_lw:'LED Width',s_tv:'Travel/Side',s_md:'Max Door',s_cs:'Cart Spacing',s_ls:'Cable Spacing',s_lu:'Cable Use/Side',s_hk:'Hooks/Side',cls:'Closed',opn:'Open',lg_t:'Track',lg_l:'LED',lg_tr:'Truss',lg_s:'Slave',lg_m:'Motor',lg_lc:'Cable',hint:'💡 Click hook points to toggle motor / slave',th_i:'Item',th_s:'Spec',th_q:'Qty',th_n:'Notes',i_t:'Track',sp_3m:'3m length',sp_2m:'2m length',i_m:'Motor Cart',sp_m:'{cap}T/unit',i_s:'Slave Cart',sp_s:'Hook only',i_tr:'Truss',i_lc:'Cable Trolley',sp_lc:'17cm wide',n_ps:'{n}/side',n_pp:'{n}/side',n_u:'{n} units',n_p:'{n} pcs',n_lr:'L {l} / R {r}',n_tot:'Total',n_tt:'Track {len}m / LED weight {w}T',n_ne:'⚠ actual: {actual}m',sp_l:'Cable {x}m',sp_t:'Travel {x}m',sp_le:'LED {x}m',ll_l:'Cable',ll_t:'Travel',ll_e:'LED',l_l:'L',l_r:'R',l_t:'LED {label} {len}m',l_ts:'LED {len}m',d_w:'Door {x} m',o_w:'Open {x} m',t_t:'Track {x} m',t_m:'Motor cart - click to toggle',t_s:'Slave cart - click to toggle',e_w:'LED width exceeds track length',e_z:'LED width must be > 0',e_ts:'Track too short for LED',e_ns:'No solution found',ph:'Enter parameters and calculate',sf_d:'door {x}m',sf_t:'travel {x}m',s_msg:'✓ For {target}, recommend track {len}m ({t3}×3m + {t2}×2m)',share_btn:'Share',share_copied:'✓ Share link copied to clipboard'},
+id:{title:'Kalkulator Rel Langit LED',subtitle:'Konfigurasi Peralatan Panggung · Perhitungan Material Real-time',mode_title:'Mode',m_fwd:'Maju',m_rd:'Cari Pintu',m_rt:'Cari Jarak',params:'Parameter',led_w:'Lebar LED (m)',dm:'Mode Pintu',dm_d:'Dua Sisi',dm_s:'Satu Sisi',led_wt:'Berat LED per Sisi (T)',m_cap:'Kapasitas Motor (T)',tl:'Panjang Rel (m)',dd:'Lebar Pintu Diinginkan (m)',dt:'Jarak per Sisi (m)',calc:'Hitung',rules:'Aturan',r_t:'• Rel: sambungan 3m + 2m (utama 3m)',r_tr:'• Truss: 3m, ⌈setengah lebar LED ÷ 3⌉ keping/sisi',r_c:'• Kereta: titik gantung di ujung, jarak ≤ 2.5m',r_m:'• Kereta motor: ⌈berat ÷ kapasitas⌉/sisi (min 1)',r_l:'• Trolley kabel: gantungan di ujung, ≤ 2.5m, 17cm + 3cm jeda',stats:'Metrik Utama',layout:'Diagram Konfigurasi (Tampak Depan)',mat:'Daftar Material',space:'Alokasi Ruang',s_tl:'Panjang Rel',s_lw:'Lebar LED',s_tv:'Jarak/Sisi',s_md:'Pintu Maks',s_cs:'Jarak Kereta',s_ls:'Jarak Kabel',s_lu:'Kabel/Sisi',s_hk:'Gantungan/Sisi',cls:'Tutup',opn:'Buka',lg_t:'Rel',lg_l:'LED',lg_tr:'Truss',lg_s:'Kereta',lg_m:'Motor',lg_lc:'Kabel',hint:'💡 Klik titik gantung untuk ubah motor / pasif',th_i:'Item',th_s:'Spek',th_q:'Jml',th_n:'Catatan',i_t:'Rel',sp_3m:'panjang 3m',sp_2m:'panjang 2m',i_m:'Kereta Motor',sp_m:'{cap}T/unit',i_s:'Kereta Pasif',sp_s:'titik gantung',i_tr:'Truss',i_lc:'Trolley Kabel',sp_lc:'lebar 17cm',n_ps:'{n}/sisi',n_pp:'{n}/sisi',n_u:'{n} unit',n_p:'{n} keping',n_lr:'Kr {l} / Kn {r}',n_tot:'Total',n_tt:'Rel {len}m / Berat LED {w}T',n_ne:'⚠ aktual: {actual}m',sp_l:'Kabel {x}m',sp_t:'Jarak {x}m',sp_le:'LED {x}m',ll_l:'Kabel',ll_t:'Jarak',ll_e:'LED',l_l:'Kr',l_r:'Kn',l_t:'LED {label} {len}m',l_ts:'LED {len}m',d_w:'Pintu {x} m',o_w:'Buka {x} m',t_t:'Rel {x} m',t_m:'Motor - klik untuk ubah',t_s:'Pasif - klik untuk ubah',e_w:'Lebar LED melebihi panjang rel',e_z:'Lebar LED harus > 0',e_ts:'Rel terlalu pendek',e_ns:'Tidak ada solusi',ph:'Masukkan parameter dan hitung',sf_d:'pintu {x}m',sf_t:'jarak {x}m',s_msg:'✓ Untuk {target}, rekomendasi rel {len}m ({t3}×3m + {t2}×2m)',share_btn:'Bagikan',share_copied:'✓ Link dibagikan disalin ke clipboard'},
+vi:{title:'Máy Tính Ray Trần LED',subtitle:'Cấu Hình Thiết Bị Sân Khấu · Tính Vật Tư Thời Gian Thực',mode_title:'Chế Độ',m_fwd:'Tính Xuôi',m_rd:'Tìm Độ Mở',m_rt:'Tìm Hành Trình',params:'Thông Số',led_w:'Chiều Rộng LED (m)',dm:'Kiểu Mở',dm_d:'Hai Bên',dm_s:'Một Bên',led_wt:'Trọng Lượng LED/Bên (T)',m_cap:'Tải Motor (T/cái)',tl:'Tổng Dài Ray (m)',dd:'Độ Mở Mong Muốn (m)',dt:'Hành Trình/Bên (m)',calc:'Tính',rules:'Quy Tắc',r_t:'• Ray: 3m + 2m ghép (ưu tiên 3m)',r_tr:'• Truss: 3m, ⌈nửa rộng LED ÷ 3⌉ thanh/bên',r_c:'• Xe trên ray: móc 2 đầu, khoảng cách ≤ 2.5m',r_m:'• Xe motor: ⌈trọng lượng ÷ tải⌉/bên (tối thiểu 1)',r_l:'• Xe cáp: móc 2 đầu, ≤ 2.5m, rộng 17cm + 3cm dự trữ',stats:'Chỉ Số Chính',layout:'Sơ Đồ (Nhìn Trước)',mat:'Danh Sách Vật Tư',space:'Phân Bổ Không Gian',s_tl:'Tổng Ray',s_lw:'Rộng LED',s_tv:'Hành Trình/Bên',s_md:'Mở Tối Đa',s_cs:'Khoảng Cách Xe',s_ls:'Khoảng Cách Cáp',s_lu:'Cáp/Bên',s_hk:'Móc/Bên',cls:'Đóng',opn:'Mở',lg_t:'Ray',lg_l:'LED',lg_tr:'Truss',lg_s:'Xe Phụ',lg_m:'Xe Motor',lg_lc:'Xe Cáp',hint:'💡 Bấm điểm móc để đổi motor / phụ',th_i:'Mục',th_s:'Thông Số',th_q:'SL',th_n:'Ghi Chú',i_t:'Ray',sp_3m:'dài 3m',sp_2m:'dài 2m',i_m:'Xe Motor',sp_m:'{cap}T/cái',i_s:'Xe Phụ',sp_s:'điểm móc',i_tr:'Truss',i_lc:'Xe Cáp',sp_lc:'rộng 17cm',n_ps:'{n}/bên',n_pp:'{n}/bên',n_u:'{n} cái',n_p:'{n} thanh',n_lr:'T {l} / P {r}',n_tot:'Tổng',n_tt:'Ray {len}m / LED {w}T',n_ne:'⚠ thực tế: {actual}m',sp_l:'Cáp {x}m',sp_t:'Hành Trình {x}m',sp_le:'LED {x}m',ll_l:'Cáp',ll_t:'Hành Trình',ll_e:'LED',l_l:'T',l_r:'P',l_t:'LED {label} {len}m',l_ts:'LED {len}m',d_w:'Mở {x} m',o_w:'Mở {x} m',t_t:'Ray {x} m',t_m:'Motor - bấm để đổi',t_s:'Phụ - bấm để đổi',e_w:'LED rộng hơn ray',e_z:'LED phải > 0',e_ts:'Ray quá ngắn',e_ns:'Không có lời giải',ph:'Nhập thông số và tính',sf_d:'mở {x}m',sf_t:'hành trình {x}m',s_msg:'✓ Để đạt {target}, đề xuất ray {len}m ({t3}×3m + {t2}×2m)',share_btn:'Chia sẻ',share_copied:'✓ Đã sao chép link chia sẻ'},
+ko:{title:'LED 천장 트랙 계산기',subtitle:'무대 장비 구성 · 실시간 자재 계산',mode_title:'모드',m_fwd:'정방향',m_rd:'문폭 역산',m_rt:'주행 역산',params:'입력 변수',led_w:'LED 폭 (m)',dm:'개방 모드',dm_d:'양쪽 열림',dm_s:'한쪽',led_wt:'LED 한쪽 중량 (T)',m_cap:'모터카 단위 적재 (T)',tl:'트랙 총 길이 (m)',dd:'원하는 문폭 (m)',dt:'한쪽 주행거리 (m)',calc:'계산',rules:'계산 규칙',r_t:'• 트랙: 3m + 2m 연결 (3m 우선)',r_tr:'• 트러스: 3m, 한쪽 ⌈LED 반폭 ÷ 3⌉개',r_c:'• 카: 양 끝 후크 필수, 간격 ≤ 2.5m',r_m:'• 모터카: 한쪽 ⌈중량 ÷ 적재⌉ (최소 1대)',r_l:'• 케이블카: 양 끝 후크, ≤ 2.5m, 17cm + 3cm 여유',stats:'주요 지표',layout:'배치도 (정면도)',mat:'자재 목록',space:'공간 배분',s_tl:'트랙 길이',s_lw:'LED 폭',s_tv:'한쪽 주행',s_md:'최대 문폭',s_cs:'카 간격',s_ls:'케이블 간격',s_lu:'케이블/쪽',s_hk:'후크/쪽',cls:'닫힘',opn:'열림',lg_t:'트랙',lg_l:'LED',lg_tr:'트러스',lg_s:'슬레이브',lg_m:'모터카',lg_lc:'케이블카',hint:'💡 후크 클릭하여 모터/슬레이브 전환',th_i:'항목',th_s:'사양',th_q:'수량',th_n:'비고',i_t:'트랙',sp_3m:'길이 3m',sp_2m:'길이 2m',i_m:'모터카',sp_m:'{cap}T/대',i_s:'슬레이브',sp_s:'후크용',i_tr:'트러스',i_lc:'케이블카',sp_lc:'폭 17cm',n_ps:'한쪽 {n}대',n_pp:'한쪽 {n}장',n_u:'{n}대',n_p:'{n}장',n_lr:'좌 {l} / 우 {r}',n_tot:'합계',n_tt:'트랙 {len}m / LED 총중량 {w}T',n_ne:'⚠ 실제: {actual}m',sp_l:'케이블 {x}m',sp_t:'주행 {x}m',sp_le:'LED {x}m',ll_l:'케이블',ll_t:'주행',ll_e:'LED',l_l:'좌',l_r:'우',l_t:'LED {label} {len}m',l_ts:'LED {len}m',d_w:'문폭 {x} m',o_w:'열림 {x} m',t_t:'트랙 {x} m',t_m:'모터카 - 클릭 전환',t_s:'슬레이브 - 클릭 전환',e_w:'LED 폭이 트랙보다 큼',e_z:'LED 폭은 0 이상',e_ts:'트랙이 너무 짧음',e_ns:'해를 찾을 수 없음',ph:'변수 입력 후 계산',sf_d:'문폭 {x}m',sf_t:'주행 {x}m',s_msg:'✓ {target} 달성을 위해 트랙 {len}m 권장 ({t3}×3m + {t2}×2m)',share_btn:'공유',share_copied:'✓ 공유 링크가 클립보드에 복사되었습니다'},
+ja:{title:'LED天井トラック計算機',subtitle:'ステージ機器構成 · リアルタイム資材計算',mode_title:'モード',m_fwd:'正方向',m_rd:'開口逆算',m_rt:'走行逆算',params:'パラメータ',led_w:'LED幅 (m)',dm:'開口モード',dm_d:'両開き',dm_s:'片開き',led_wt:'LED片側重量 (T)',m_cap:'モーター車耐荷重 (T)',tl:'トラック総長 (m)',dd:'目標開口幅 (m)',dt:'片側走行距離 (m)',calc:'計算',rules:'計算ルール',r_t:'• トラック: 3m + 2m 連結（3m優先）',r_tr:'• トラス: 3m、片側 ⌈LED半幅 ÷ 3⌉ 本',r_c:'• キャリッジ: 両端に吊点必須、間隔 ≤ 2.5m',r_m:'• モーター車: 片側 ⌈重量 ÷ 耐荷重⌉（最少1台）',r_l:'• ケーブル車: 両端に吊点、≤ 2.5m、幅17cm + 余裕3cm',stats:'主要指標',layout:'配置図（正面図）',mat:'資材リスト',space:'スペース配分',s_tl:'トラック長',s_lw:'LED幅',s_tv:'片側走行',s_md:'最大開口',s_cs:'キャリッジ間隔',s_ls:'ケーブル間隔',s_lu:'ケーブル/側',s_hk:'吊点/側',cls:'閉',opn:'開',lg_t:'トラック',lg_l:'LED',lg_tr:'トラス',lg_s:'スレーブ',lg_m:'モーター',lg_lc:'ケーブル',hint:'💡 吊点クリックでモーター / スレーブ切替',th_i:'項目',th_s:'仕様',th_q:'数量',th_n:'備考',i_t:'トラック',sp_3m:'長3m',sp_2m:'長2m',i_m:'モーター車',sp_m:'{cap}T/台',i_s:'スレーブ車',sp_s:'吊点用',i_tr:'トラス',i_lc:'ケーブル車',sp_lc:'幅17cm',n_ps:'片側{n}台',n_pp:'片側{n}本',n_u:'{n}台',n_p:'{n}本',n_lr:'左 {l} / 右 {r}',n_tot:'合計',n_tt:'トラック {len}m / LED総重 {w}T',n_ne:'⚠ 実際: {actual}m',sp_l:'ケーブル {x}m',sp_t:'走行 {x}m',sp_le:'LED {x}m',ll_l:'ケーブル',ll_t:'走行',ll_e:'LED',l_l:'左',l_r:'右',l_t:'LED {label} {len}m',l_ts:'LED {len}m',d_w:'開口 {x} m',o_w:'開 {x} m',t_t:'トラック {x} m',t_m:'モーター - クリック切替',t_s:'スレーブ - クリック切替',e_w:'LED幅がトラックより長い',e_z:'LED幅は0より大',e_ts:'トラックが短すぎる',e_ns:'解が見つかりません',ph:'パラメータ入力して計算',sf_d:'開口{x}m',sf_t:'走行{x}m',s_msg:'✓ {target}達成のため、トラック {len}m 推奨（{t3}×3m + {t2}×2m）',share_btn:'共有',share_copied:'✓ 共有リンクがクリップボードにコピーされました'}
+};
+
+const TRUSS=3, LCAR_W=0.17, LCAR_C=0.03, LCAR_T=LCAR_W+LCAR_C, CAR_GAP=2.5, LCAR_GAP=2.5;
+
+const state = {
+  mode: 'forward', doorMode: 'double', result: null, openRatio: 0, lang: 'zh',
+  motorPositions: { left: new Set(), right: new Set(), single: new Set() }
+};
+
+// localStorage 語言記憶
+try { const sl = localStorage.getItem('led-calc-lang'); if (sl && i18n[sl]) state.lang = sl; } catch(e){}
+
+// URL 參數載入
+(function loadUrlParams() {
+  const u = new URLSearchParams(location.search);
+  if (u.get('lang') && i18n[u.get('lang')]) state.lang = u.get('lang');
+  if (u.get('dm') && (u.get('dm')==='double'||u.get('dm')==='single')) state.doorMode = u.get('dm');
+  if (u.get('mode') && ['forward','rev-door','rev-travel'].includes(u.get('mode'))) state.mode = u.get('mode');
+  window._urlParams = u;
+})();
+
+function t(key, params) {
+  const d = i18n[state.lang] || i18n.zh;
+  let s = d[key] !== undefined ? d[key] : (i18n.zh[key] !== undefined ? i18n.zh[key] : key);
+  if (params) for (const k in params) s = s.replace(new RegExp('\\{'+k+'\\}', 'g'), params[k]);
+  return s;
+}
+
+function applyI18n() {
+  document.querySelectorAll('[data-i]').forEach(el => { el.textContent = t(el.dataset.i); });
+  document.title = t('title');
+  document.documentElement.lang = state.lang;
+  if (state.result) renderAll();
+}
+
+function defaultMotorIndices(N, mc) {
+  const idx = new Set();
+  if (N===0||mc===0) return idx;
+  mc = Math.min(mc, N);
+  if (mc===1) idx.add(Math.floor(N/2));
+  else { const step = (N-1)/(mc-1); for (let i=0;i<mc;i++) idx.add(Math.round(i*step)); }
+  return idx;
+}
+
+function initMotorPositions(r) {
+  if (!r||r.error) { state.motorPositions = {left:new Set(),right:new Set(),single:new Set()}; return; }
+  const def = defaultMotorIndices(r.carsPerSide, r.motorPerSide);
+  state.motorPositions = {
+    left: r.sides===2 ? new Set(def) : new Set(),
+    right: r.sides===2 ? new Set(def) : new Set(),
+    single: r.sides===1 ? new Set(def) : new Set()
+  };
+}
+
+function trackComp(L) {
+  const tol=0.001;
+  for (let a=Math.floor(L/3+tol);a>=0;a--) {
+    const rem = L - 3*a;
+    if (rem<-tol) continue;
+    const b = rem/2;
+    if (Math.abs(b-Math.round(b))<tol && b>=-tol) return {t3:a, t2:Math.max(0,Math.round(b)), exact:true};
+  }
+  const a=Math.floor(L/3), rem=L-3*a, b=Math.max(0,Math.round(rem/2));
+  return {t3:a, t2:b, exact:false, actual:3*a+2*b};
+}
+
+function calcForward({trackLength, ledWidth, doorMode, ledWeight, motorCap}) {
+  if (trackLength<ledWidth) return {error:t('e_w')};
+  if (ledWidth<=0) return {error:t('e_z')};
+  const sides = doorMode==='double' ? 2 : 1;
+  const ledHalf = doorMode==='double' ? ledWidth/2 : ledWidth;
+  const trussPerSide = Math.ceil(ledHalf/TRUSS-0.0001) || 1;
+  const trussTotal = trussPerSide*sides;
+  const carsPerSide = Math.max(2, Math.ceil(ledHalf/CAR_GAP-0.0001)+1);
+  const motorPerSide = Math.max(1, Math.ceil(ledWeight/motorCap-0.0001));
+  const slavePerSide = Math.max(0, carsPerSide-motorPerSide);
+  const motorTotal = motorPerSide*sides;
+  const slaveTotal = slavePerSide*sides;
+  const freePerSide = doorMode==='double' ? (trackLength-ledWidth)/2 : (trackLength-ledWidth);
+  if (freePerSide<0) return {error:t('e_ts')};
+  const lcarsPerSide = freePerSide>0.001 ? Math.ceil(freePerSide/LCAR_GAP-0.0001)+1 : 0;
+  const lcarOccupy = lcarsPerSide*LCAR_T;
+  const lcarsTotal = lcarsPerSide*sides;
+  const travelPerSide = Math.max(0, freePerSide-lcarOccupy);
+  const maxDoor = doorMode==='double' ? travelPerSide*2 : travelPerSide;
+  const carSpacing = carsPerSide>1 ? ledHalf/(carsPerSide-1) : 0;
+  const lineSpacing = lcarsPerSide>1 ? freePerSide/(lcarsPerSide-1) : 0;
+  const tcomp = trackComp(trackLength);
+  return {
+    inputs:{trackLength,ledWidth,doorMode,ledWeight,motorCap}, sides, ledHalf,
+    trussPerSide, trussTotal, carsPerSide, motorPerSide, slavePerSide, motorTotal, slaveTotal,
+    freePerSide, lcarsPerSide, lcarsTotal, lcarOccupy, travelPerSide, maxDoor,
+    carSpacing, lineSpacing, tcomp, error:null
+  };
+}
+
+function isValidTrackLength(L) {
+  for (let a=Math.floor(L/3);a>=0;a--) { const rem=L-3*a; if (rem<0) continue; if (rem%2===0) return true; }
+  return false;
+}
+
+function calcReverseDoor({desiredDoor, ledWidth, doorMode, ledWeight, motorCap}) {
+  const minL = ledWidth+desiredDoor;
+  for (let L=Math.max(2,Math.floor(minL));L<=minL+200;L++) {
+    if (!isValidTrackLength(L)) continue;
+    const r = calcForward({trackLength:L, ledWidth, doorMode, ledWeight, motorCap});
+    if (!r.error && r.maxDoor>=desiredDoor-0.001) {
+      r.solvedFor = t('sf_d', {x:desiredDoor});
+      return r;
+    }
+  }
+  return {error:t('e_ns')};
+}
+
+function calcReverseTravel({desiredTravel, ledWidth, doorMode, ledWeight, motorCap}) {
+  const sides = doorMode==='double' ? 2 : 1;
+  const minL = ledWidth+desiredTravel*sides;
+  for (let L=Math.max(2,Math.floor(minL));L<=minL+200;L++) {
+    if (!isValidTrackLength(L)) continue;
+    const r = calcForward({trackLength:L, ledWidth, doorMode, ledWeight, motorCap});
+    if (!r.error && r.travelPerSide>=desiredTravel-0.001) {
+      r.solvedFor = t('sf_t', {x:desiredTravel});
+      return r;
+    }
+  }
+  return {error:t('e_ns')};
+}
+
+function renderKeyStats(r) {
+  const el = document.getElementById('key-stats');
+  if (!r||r.error) { el.innerHTML = `<div class="warn" style="grid-column:1/-1">${r?.error||t('ph')}</div>`; return; }
+  const stats = [
+    {l:t('s_tl'), v:r.inputs.trackLength.toFixed(1), u:'m'},
+    {l:t('s_lw'), v:r.inputs.ledWidth.toFixed(1), u:'m'},
+    {l:t('s_tv'), v:r.travelPerSide.toFixed(2), u:'m', hl:1},
+    {l:t('s_md'), v:r.maxDoor.toFixed(2), u:'m', hl:1},
+    {l:t('s_cs'), v:r.carSpacing>0?r.carSpacing.toFixed(2):'—', u:r.carSpacing>0?'m':'', hl:1},
+    {l:t('s_ls'), v:r.lineSpacing>0?r.lineSpacing.toFixed(2):'—', u:r.lineSpacing>0?'m':'', hl:1},
+    {l:t('s_lu'), v:r.lcarOccupy.toFixed(2), u:'m'},
+    {l:t('s_hk'), v:r.carsPerSide, u:''}
+  ];
+  el.innerHTML = stats.map(s => `<div class="stat ${s.hl?'hl':''}"><div class="sl">${s.l}</div><div class="sv">${s.v}<span class="su">${s.u}</span></div></div>`).join('');
+}
+
+function renderMaterials(r) {
+  const tb = document.getElementById('mat-list');
+  if (!r||r.error) { tb.innerHTML = `<tr><td colspan="4" style="text-align:center;color:#a3a3a3">－</td></tr>`; return; }
+  const totalLen = r.tcomp.t3*3+r.tcomp.t2*2;
+  const totalWeight = r.inputs.ledWeight*r.sides;
+  const mpL=state.motorPositions.left.size, mpR=state.motorPositions.right.size, mpS=state.motorPositions.single.size;
+  const motorTotal = mpL+mpR+mpS;
+  const totalCars = r.carsPerSide*r.sides;
+  const slaveTotal = totalCars-motorTotal;
+  const motorNote = r.sides===2 ? t('n_lr',{l:mpL,r:mpR}) : t('n_u',{n:mpS});
+  const slaveNote = r.sides===2 ? t('n_lr',{l:r.carsPerSide-mpL,r:r.carsPerSide-mpR}) : t('n_u',{n:r.carsPerSide-mpS});
+  const trussNote = r.sides===2 ? t('n_pp',{n:r.trussPerSide}) : t('n_p',{n:r.trussPerSide});
+  const lcarNote = r.sides===2 ? t('n_ps',{n:r.lcarsPerSide}) : t('n_u',{n:r.lcarsPerSide});
+  const rows = [
+    {n:t('i_t'), s:t('sp_3m'), q:r.tcomp.t3, nt:`${(r.tcomp.t3*3).toFixed(1)} m`},
+    {n:t('i_t'), s:t('sp_2m'), q:r.tcomp.t2, nt:`${(r.tcomp.t2*2).toFixed(1)} m`},
+    {n:t('i_m'), s:t('sp_m',{cap:r.inputs.motorCap}), q:motorTotal, nt:motorNote},
+    {n:t('i_s'), s:t('sp_s'), q:slaveTotal, nt:slaveNote},
+    {n:t('i_tr'), s:t('sp_3m'), q:r.trussTotal, nt:trussNote},
+    {n:t('i_lc'), s:t('sp_lc'), q:r.lcarsTotal, nt:lcarNote}
+  ];
+  tb.innerHTML = rows.map(row => `<tr ${row.q===0?'class="zr"':''}><td>${row.n}</td><td>${row.s}</td><td><span class="qty ${row.q===0?'zr':''}">${row.q}</span></td><td style="color:#a3a3a3">${row.nt}</td></tr>`).join('') + 
+    `<tr style="background:rgba(249,115,22,0.04)"><td><strong>${t('n_tot')}</strong></td><td style="color:#a3a3a3">${t('n_tt',{len:totalLen,w:totalWeight.toFixed(1)})}</td><td></td><td style="color:#a3a3a3">${r.tcomp.exact?'':t('n_ne',{actual:r.tcomp.actual})}</td></tr>`;
+}
+
+function renderSpace(r) {
+  const strip = document.getElementById('space-strip');
+  const labels = document.getElementById('space-labels');
+  if (!r||r.error) { strip.innerHTML=''; labels.innerHTML=''; return; }
+  const total = r.inputs.trackLength;
+  const ledP = (r.inputs.ledWidth/total)*100;
+  const lcarP = (r.lcarOccupy*r.sides/total)*100;
+  const travelP = 100-ledP-lcarP;
+  if (r.sides===2) {
+    strip.innerHTML = `
+      <div class="ss" style="width:${lcarP/2}%;background:#a855f7"></div>
+      <div class="ss" style="width:${travelP/2}%;background:#404040;color:#a3a3a3">${travelP/2>6?t('ll_t'):''}</div>
+      <div class="ss" style="width:${ledP}%;background:#f97316">${ledP>8?t('ll_e'):''}</div>
+      <div class="ss" style="width:${travelP/2}%;background:#404040;color:#a3a3a3">${travelP/2>6?t('ll_t'):''}</div>
+      <div class="ss" style="width:${lcarP/2}%;background:#a855f7"></div>`;
+  } else {
+    strip.innerHTML = `
+      <div class="ss" style="width:${lcarP}%;background:#a855f7">${lcarP>6?t('ll_l'):''}</div>
+      <div class="ss" style="width:${travelP}%;background:#404040;color:#a3a3a3">${travelP>8?t('ll_t'):''}</div>
+      <div class="ss" style="width:${ledP}%;background:#f97316">${ledP>8?t('ll_e'):''}</div>`;
+  }
+  labels.innerHTML = `
+    <span><span class="dot" style="background:#a855f7"></span>${t('sp_l',{x:(r.lcarOccupy*r.sides).toFixed(2)})}</span>
+    <span><span class="dot" style="background:#404040"></span>${t('sp_t',{x:(r.travelPerSide*r.sides).toFixed(2)})}</span>
+    <span><span class="dot" style="background:#f97316"></span>${t('sp_le',{x:r.inputs.ledWidth.toFixed(1)})}</span>`;
+}
+
+function renderSVG(r, ratio) {
+  const svg = document.getElementById('layout-svg');
+  if (!r||r.error) { svg.innerHTML=''; return; }
+  const W=1000, H=380, padX=50, padTop=70, innerW=W-2*padX;
+  const L=r.inputs.trackLength, sx=innerW/L;
+  const x = pos => padX+pos*sx;
+  const trackY=padTop+30, trackH=12, trussY=padTop+130, trussH=8, ledY=padTop+165, ledH=60, carR=7;
+  const travel=r.travelPerSide, offset=travel*ratio;
+  let leftStart, leftEnd, rightStart, rightEnd, singleStart, singleEnd;
+  if (r.sides===2) {
+    const cm=(L-r.inputs.ledWidth)/2;
+    leftStart=cm-offset; leftEnd=cm+r.ledHalf-offset;
+    rightStart=cm+r.ledHalf+offset; rightEnd=cm+r.inputs.ledWidth+offset;
+  } else {
+    singleStart=L-r.inputs.ledWidth-offset; singleEnd=L-offset;
+  }
+  let svgC='';
+  // Track segments
+  const segs=[]; let cx=0;
+  for (let i=0;i<r.tcomp.t3;i++) { segs.push({s:cx,len:3,lb:'3m'}); cx+=3; }
+  for (let i=0;i<r.tcomp.t2;i++) { segs.push({s:cx,len:2,lb:'2m'}); cx+=2; }
+  segs.forEach((s,i) => {
+    const c=i%2===0?'#525252':'#404040';
+    svgC += `<rect x="${x(s.s)}" y="${trackY}" width="${s.len*sx}" height="${trackH}" fill="${c}" stroke="#0a0a0a" stroke-width="1" rx="1"/>`;
+    if (s.len*sx>18) svgC += `<text x="${x(s.s+s.len/2)}" y="${trackY-5}" fill="#737373" font-size="9" text-anchor="middle">${s.lb}</text>`;
+  });
+  // Assembly draw
+  function drawAssembly(start, end, sideKey, sideLabelText) {
+    const len=end-start, trussCount=r.trussPerSide;
+    for (let i=0;i<trussCount;i++) {
+      const tStart=start+i*TRUSS, tLen=Math.min(TRUSS, end-tStart);
+      svgC += `<rect x="${x(tStart)}" y="${trussY}" width="${tLen*sx}" height="${trussH}" fill="#06b6d4" stroke="#0e7490" stroke-width="0.5" rx="2"/>`;
+    }
+    svgC += `<rect x="${x(start)}" y="${ledY}" width="${len*sx}" height="${ledH}" fill="#f97316" stroke="#c2410c" stroke-width="1" rx="2"/>`;
+    if (len*sx>60) {
+      const lbl = sideLabelText ? t('l_t', {label:sideLabelText, len:len.toFixed(1)}) : t('l_ts', {len:len.toFixed(1)});
+      svgC += `<text x="${x((start+end)/2)}" y="${ledY+ledH/2+5}" fill="#0a0a0a" font-size="13" font-weight="600" text-anchor="middle">${lbl}</text>`;
+    }
+    const carPositions=[], N=r.carsPerSide;
+    for (let i=0;i<N;i++) carPositions.push(start+i*(end-start)/(N-1));
+    const motorIdx = state.motorPositions[sideKey] || new Set();
+    carPositions.forEach((p,i) => {
+      const isMotor = motorIdx.has(i);
+      svgC += `<line x1="${x(p)}" y1="${trackY+trackH}" x2="${x(p)}" y2="${trussY}" stroke="#525252" stroke-width="0.8" stroke-dasharray="2,2"/>`;
+      svgC += `<line x1="${x(p)}" y1="${trussY+trussH}" x2="${x(p)}" y2="${ledY}" stroke="#404040" stroke-width="0.8"/>`;
+      svgC += `<circle cx="${x(p)}" cy="${trackY+trackH/2}" r="${carR}" fill="${isMotor?'#fbbf24':'#10b981'}" stroke="#0a0a0a" stroke-width="1.5" data-side="${sideKey}" data-idx="${i}" style="cursor:pointer"><title>${isMotor?t('t_m'):t('t_s')}</title></circle>`;
+      if (isMotor) svgC += `<text x="${x(p)}" y="${trackY+trackH/2+3}" fill="#0a0a0a" font-size="8" font-weight="700" text-anchor="middle" pointer-events="none">M</text>`;
+    });
+    for (let i=0;i<carPositions.length-1;i++) {
+      const p1=carPositions[i], p2=carPositions[i+1], mid=(p1+p2)/2, gap=p2-p1;
+      if (gap*sx>26) svgC += `<text x="${x(mid)}" y="${trackY-22}" fill="#10b981" font-size="9" font-weight="600" text-anchor="middle">${gap.toFixed(2)}</text>`;
+    }
+  }
+  function drawLineCarsAt(rs, re, count) {
+    if (count===0) return;
+    const positions=[];
+    for (let i=0;i<count;i++) {
+      const tt = count===1 ? 0.5 : i/(count-1);
+      const cx = rs+tt*(re-rs);
+      positions.push(cx);
+      svgC += `<rect x="${x(cx)-4}" y="${trackY-5}" width="8" height="${trackH+10}" fill="#a855f7" stroke="#0a0a0a" stroke-width="0.5" rx="1.5"/>`;
+    }
+    for (let i=0;i<positions.length-1;i++) {
+      const p1=positions[i], p2=positions[i+1], mid=(p1+p2)/2, gap=p2-p1;
+      if (gap*sx>26) svgC += `<text x="${x(mid)}" y="${trackY-22}" fill="#a855f7" font-size="9" font-weight="600" text-anchor="middle">${gap.toFixed(2)}</text>`;
+    }
+  }
+  if (r.sides===2) {
+    if (r.lcarsPerSide>0) { drawLineCarsAt(0, leftStart, r.lcarsPerSide); drawLineCarsAt(rightEnd, L, r.lcarsPerSide); }
+    drawAssembly(leftStart, leftEnd, 'left', t('l_l'));
+    drawAssembly(rightStart, rightEnd, 'right', t('l_r'));
+  } else {
+    if (r.lcarsPerSide>0) drawLineCarsAt(0, singleStart, r.lcarsPerSide);
+    drawAssembly(singleStart, singleEnd, 'single', '');
+  }
+  // Door / open annotation
+  if (r.sides===2 && ratio>0.02) {
+    const dy=padTop+5, ds=leftEnd, de=rightStart;
+    svgC += `<line x1="${x(ds)}" y1="${dy}" x2="${x(de)}" y2="${dy}" stroke="#fbbf24" stroke-width="1.5"/>
+      <line x1="${x(ds)}" y1="${dy-5}" x2="${x(ds)}" y2="${dy+5}" stroke="#fbbf24" stroke-width="1.5"/>
+      <line x1="${x(de)}" y1="${dy-5}" x2="${x(de)}" y2="${dy+5}" stroke="#fbbf24" stroke-width="1.5"/>
+      <text x="${x((ds+de)/2)}" y="${dy-9}" fill="#fbbf24" font-size="13" font-weight="700" text-anchor="middle">${t('d_w',{x:(de-ds).toFixed(2)})}</text>`;
+  } else if (r.sides===1 && ratio>0.02) {
+    const dy=padTop+5, ds=singleEnd, de=L;
+    if (de-ds>0.1) svgC += `<line x1="${x(ds)}" y1="${dy}" x2="${x(de)}" y2="${dy}" stroke="#fbbf24" stroke-width="1.5"/>
+      <line x1="${x(ds)}" y1="${dy-5}" x2="${x(ds)}" y2="${dy+5}" stroke="#fbbf24" stroke-width="1.5"/>
+      <line x1="${x(de)}" y1="${dy-5}" x2="${x(de)}" y2="${dy+5}" stroke="#fbbf24" stroke-width="1.5"/>
+      <text x="${x((ds+de)/2)}" y="${dy-9}" fill="#fbbf24" font-size="13" font-weight="700" text-anchor="middle">${t('o_w',{x:(de-ds).toFixed(2)})}</text>`;
+  }
+  // Track total
+  const dimY=ledY+ledH+30;
+  svgC += `<line x1="${x(0)}" y1="${dimY}" x2="${x(L)}" y2="${dimY}" stroke="#737373" stroke-width="1"/>
+    <line x1="${x(0)}" y1="${dimY-5}" x2="${x(0)}" y2="${dimY+5}" stroke="#737373" stroke-width="1"/>
+    <line x1="${x(L)}" y1="${dimY-5}" x2="${x(L)}" y2="${dimY+5}" stroke="#737373" stroke-width="1"/>
+    <text x="${x(L/2)}" y="${dimY+18}" fill="#a3a3a3" font-size="11" text-anchor="middle">${t('t_t',{x:L.toFixed(1)})}</text>`;
+  svg.innerHTML = svgC;
+  const _fs = document.getElementById('layout-svg-fs');
+  if (_fs) _fs.innerHTML = svgC;
+}
+
+async function openFs() {
+  const ov = document.getElementById('fs-overlay');
+  ov.classList.add('show');
+  document.getElementById('layout-svg-fs').innerHTML = document.getElementById('layout-svg').innerHTML;
+  try {
+    if (ov.requestFullscreen) await ov.requestFullscreen();
+    if (window.innerWidth < 900 && screen.orientation && screen.orientation.lock) {
+      await screen.orientation.lock('landscape').catch(()=>{});
+    }
+  } catch(e) {}
+}
+
+function closeFs() {
+  document.getElementById('fs-overlay').classList.remove('show');
+  if (document.fullscreenElement) document.exitFullscreen().catch(()=>{});
+  if (screen.orientation && screen.orientation.unlock) { try { screen.orientation.unlock(); } catch(e){} }
+}
+
+document.addEventListener('keydown', e => { if (e.key === 'Escape') closeFs(); });
+document.addEventListener('fullscreenchange', () => { if (!document.fullscreenElement) document.getElementById('fs-overlay').classList.remove('show'); });
+document.addEventListener('click', e => {
+  const t = e.target;
+  if (t.tagName === 'circle' && t.dataset.side && t.closest('#layout-svg-fs')) {
+    const side = t.dataset.side, idx = parseInt(t.dataset.idx);
+    if (state.motorPositions[side]) {
+      if (state.motorPositions[side].has(idx)) state.motorPositions[side].delete(idx);
+      else state.motorPositions[side].add(idx);
+      renderAll();
+    }
+  }
+});
+
+function renderAll() {
+  const r = state.result;
+  const solvedEl = document.getElementById('solved');
+  if (r&&r.solvedFor&&!r.error) {
+    solvedEl.classList.add('show');
+    solvedEl.textContent = t('s_msg',{target:r.solvedFor, len:r.inputs.trackLength, t3:r.tcomp.t3, t2:r.tcomp.t2});
+  } else {
+    solvedEl.classList.remove('show');
+  }
+  renderKeyStats(r);
+  renderMaterials(r);
+  renderSpace(r);
+  renderSVG(r, state.openRatio);
+}
+
+function calculate() {
+  const ledWidth = parseFloat(document.getElementById('led-width').value)||0;
+  const ledWeight = parseFloat(document.getElementById('led-weight').value)||0;
+  const motorCap = parseFloat(document.getElementById('motor-cap').value)||1;
+  const doorMode = state.doorMode;
+  let result;
+  if (state.mode==='forward') {
+    const trackLength = parseFloat(document.getElementById('track-length').value)||0;
+    result = calcForward({trackLength, ledWidth, doorMode, ledWeight, motorCap});
+  } else if (state.mode==='rev-door') {
+    const desiredDoor = parseFloat(document.getElementById('desired-door').value)||0;
+    result = calcReverseDoor({desiredDoor, ledWidth, doorMode, ledWeight, motorCap});
+  } else {
+    const desiredTravel = parseFloat(document.getElementById('desired-travel').value)||0;
+    result = calcReverseTravel({desiredTravel, ledWidth, doorMode, ledWeight, motorCap});
+  }
+  state.result = result;
+  state.openRatio = 0;
+  initMotorPositions(result);
+  document.getElementById('open-slider').value = 0;
+  document.getElementById('op').textContent = '0%';
+  if (!state.clickAttached) {
+    document.getElementById('layout-svg').addEventListener('click', e => {
+      const tgt = e.target;
+      if (tgt.tagName==='circle' && tgt.dataset.side) {
+        const side=tgt.dataset.side, idx=parseInt(tgt.dataset.idx);
+        if (state.motorPositions[side]) {
+          if (state.motorPositions[side].has(idx)) state.motorPositions[side].delete(idx);
+          else state.motorPositions[side].add(idx);
+          renderAll();
+        }
+      }
+    });
+    state.clickAttached = true;
+  }
+  renderAll();
+}
+
+document.querySelectorAll('.tab').forEach(tab => {
+  tab.addEventListener('click', () => {
+    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+    tab.classList.add('active');
+    state.mode = tab.dataset.mode;
+    document.getElementById('g-forward').style.display = state.mode==='forward' ? '' : 'none';
+    document.getElementById('g-rev-door').style.display = state.mode==='rev-door' ? '' : 'none';
+    document.getElementById('g-rev-travel').style.display = state.mode==='rev-travel' ? '' : 'none';
+  });
+});
+
+document.querySelectorAll('[data-dm]').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('[data-dm]').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    state.doorMode = btn.dataset.dm;
+  });
+});
+
+document.getElementById('calc-btn').addEventListener('click', calculate);
+document.querySelectorAll('input[type="number"]').forEach(inp => {
+  inp.addEventListener('keypress', e => { if (e.key==='Enter') calculate(); });
+});
+document.getElementById('open-slider').addEventListener('input', e => {
+  state.openRatio = parseInt(e.target.value)/100;
+  const pct = Math.round(state.openRatio*100)+'%';
+  document.getElementById('op').textContent = pct;
+  const fp = document.getElementById('fs-pct'); if (fp) fp.textContent = pct;
+  const fs = document.getElementById('fs-slider'); if (fs) fs.value = e.target.value;
+  renderSVG(state.result, state.openRatio);
+});
+document.getElementById('fs-slider').addEventListener('input', e => {
+  state.openRatio = parseInt(e.target.value)/100;
+  const pct = Math.round(state.openRatio*100)+'%';
+  document.getElementById('op').textContent = pct;
+  document.getElementById('fs-pct').textContent = pct;
+  document.getElementById('open-slider').value = e.target.value;
+  renderSVG(state.result, state.openRatio);
+});
+document.getElementById('lang').addEventListener('change', e => {
+  state.lang = e.target.value;
+  try { localStorage.setItem('led-calc-lang', e.target.value); } catch(ex){}
+  applyI18n();
+});
+
+// 分享功能
+function shareConfig() {
+  const params = new URLSearchParams();
+  params.set('mode', state.mode);
+  params.set('lw', document.getElementById('led-width').value);
+  params.set('dm', state.doorMode);
+  params.set('wt', document.getElementById('led-weight').value);
+  params.set('mc', document.getElementById('motor-cap').value);
+  params.set('lang', state.lang);
+  if (state.mode==='forward') params.set('tl', document.getElementById('track-length').value);
+  else if (state.mode==='rev-door') params.set('dd', document.getElementById('desired-door').value);
+  else params.set('dt', document.getElementById('desired-travel').value);
+  const url = `${location.origin}${location.pathname}?${params}`;
+  navigator.clipboard.writeText(url).then(() => {
+    const toast = document.getElementById('share-toast');
+    toast.textContent = t('share_copied');
+    toast.classList.add('show');
+    setTimeout(() => toast.classList.remove('show'), 2500);
+  }).catch(() => {
+    prompt(t('share_copied'), url);
+  });
+}
+
+// 從 URL 參數初始化表單
+(function initFromUrl() {
+  const u = window._urlParams;
+  if (!u || !u.toString()) return;
+  if (u.get('lw')) document.getElementById('led-width').value = u.get('lw');
+  if (u.get('wt')) document.getElementById('led-weight').value = u.get('wt');
+  if (u.get('mc')) document.getElementById('motor-cap').value = u.get('mc');
+  if (u.get('tl')) document.getElementById('track-length').value = u.get('tl');
+  if (u.get('dd')) document.getElementById('desired-door').value = u.get('dd');
+  if (u.get('dt')) document.getElementById('desired-travel').value = u.get('dt');
+  // 套用模式
+  if (u.get('mode')) {
+    document.querySelectorAll('.tab').forEach(tab => {
+      tab.classList.toggle('active', tab.dataset.mode === state.mode);
+    });
+    document.getElementById('g-forward').style.display = state.mode==='forward' ? '' : 'none';
+    document.getElementById('g-rev-door').style.display = state.mode==='rev-door' ? '' : 'none';
+    document.getElementById('g-rev-travel').style.display = state.mode==='rev-travel' ? '' : 'none';
+  }
+  // 套用門模式
+  if (u.get('dm')) {
+    document.querySelectorAll('[data-dm]').forEach(b => b.classList.toggle('active', b.dataset.dm === state.doorMode));
+  }
+})();
+
+// 套用語言
+document.getElementById('lang').value = state.lang;
+applyI18n();
+calculate();
+</script>
+</body>
+</html>
